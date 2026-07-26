@@ -69,6 +69,8 @@ function AdminCreateShow() {
   // Theatre → Screen cascade for show creation
   const [theatres, setTheatres] = useState([]);
   const [screenOptions, setScreenOptions] = useState([]);
+  const [screenOptionsLoading, setScreenOptionsLoading] = useState(false);
+  const [screenOptionsError, setScreenOptionsError] = useState('');
   const [selectedTheatreId, setSelectedTheatreId] = useState('');
 
   const [showForm, setShowForm] = useState({
@@ -103,6 +105,8 @@ function AdminCreateShow() {
 
   const token = getToken();
   const user = JSON.parse(localStorage.getItem('user'));
+  const today = new Date();
+  const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   /* ================= FETCH MOVIES ================= */
 
@@ -147,18 +151,27 @@ function AdminCreateShow() {
     try {
       const res = await getAllTheatres();
       setTheatres(res.data.data || []);
-    } catch { /* silent */ }
+    } catch (err) {
+      console.error('Error fetching theatres:', err);
+    }
   };
 
   const handleTheatreChange = async (theatreId) => {
     setSelectedTheatreId(theatreId);
     setShowForm(f => ({ ...f, screenId: '' }));
     setScreenOptions([]);
+    setScreenOptionsError('');
     if (!theatreId) return;
+    setScreenOptionsLoading(true);
     try {
       const res = await getScreensByTheatre(theatreId);
       setScreenOptions(res.data.data || res.data || []);
-    } catch { /* silent */ }
+    } catch (err) {
+      console.error('Error loading screens:', err);
+      setScreenOptionsError(err.response?.data?.message || 'Failed to load screens for this theatre.');
+    } finally {
+      setScreenOptionsLoading(false);
+    }
   };
 
   // const fetchShows = async () => {
@@ -263,6 +276,10 @@ function AdminCreateShow() {
     e.preventDefault();
 
     try {
+      if (showForm.showDate && showForm.showDate < todayDate) {
+        alert('Show date cannot be in the past');
+        return;
+      }
 
       const payload = {
         movieId: selectedMovieForShow._id,
@@ -366,6 +383,7 @@ function AdminCreateShow() {
       setEditingTheatreId(null);
       setShowTheatreForm(false);
       fetchTheatreList();
+      fetchTheatres();
     } catch (err) {
       setTheatreError(err.response?.data?.message || 'Error saving theatre.');
     }
@@ -411,6 +429,9 @@ function AdminCreateShow() {
       setScreenForm({ screenName: '', totalSeats: '' });
       setShowScreenForm(false);
       handleSelectTheatreDetail(selectedTheatreDetail);
+      if (selectedTheatreId === selectedTheatreDetail._id) {
+        handleTheatreChange(selectedTheatreId);
+      }
     } catch (err) {
       setTheatreError(err.response?.data?.message || 'Failed to add screen.');
     }
@@ -421,6 +442,9 @@ function AdminCreateShow() {
     try {
       await deleteScreen(screenId);
       handleSelectTheatreDetail(selectedTheatreDetail);
+      if (selectedTheatreId === selectedTheatreDetail._id) {
+        handleTheatreChange(selectedTheatreId);
+      }
     } catch {
       setTheatreError('Failed to delete screen.');
     }
@@ -492,6 +516,8 @@ function AdminCreateShow() {
     setSelectedMovieForShow(movie);
     setSelectedTheatreId('');
     setScreenOptions([]);
+    setScreenOptionsError('');
+    fetchTheatres();
 
     setShowForm({
       screenId: '',
@@ -515,6 +541,7 @@ function AdminCreateShow() {
     setSelectedMovieForShow(null);
     setSelectedTheatreId('');
     setScreenOptions([]);
+    setScreenOptionsError('');
 
     setShowForm({
       screenId: '',
@@ -637,7 +664,7 @@ function AdminCreateShow() {
           </form>
 
           {/* Table */}
-          {loading ? <p>Loading...</p> : (
+          {loading ? null : (
             <>
               <table className="table table-bordered">
                 <thead>
@@ -877,7 +904,7 @@ function AdminCreateShow() {
               </form>
             )}
 
-            {theatreLoading ? <p>Loading...</p> : theatreList.length === 0 ? (
+            {theatreLoading ? null : theatreList.length === 0 ? (
               <p className="text-muted">No theatres yet.</p>
             ) : (
               theatreList.map(t => (
@@ -1067,17 +1094,32 @@ function AdminCreateShow() {
                     className="form-select mb-2"
                     value={showForm.screenId}
                     onChange={(e) => setShowForm({ ...showForm, screenId: e.target.value })}
-                    disabled={!selectedTheatreId}
+                    disabled={!selectedTheatreId || screenOptionsLoading}
                     required>
-                    <option value="">{selectedTheatreId ? '-- Choose Screen --' : 'Select a theatre first'}</option>
+                    <option value="">
+                      {screenOptionsLoading
+                        ? 'Loading screens...'
+                        : selectedTheatreId
+                          ? '-- Choose Screen --'
+                          : 'Select a theatre first'}
+                    </option>
                     {screenOptions.map(s => (
                       <option key={s._id} value={s._id}>{s.screenName} ({s.totalSeats} seats)</option>
                     ))}
                   </select>
+                  {screenOptionsError && (
+                    <div className="alert alert-danger py-2 small mb-2">{screenOptionsError}</div>
+                  )}
+                  {selectedTheatreId && !screenOptionsLoading && !screenOptionsError && screenOptions.length === 0 && (
+                    <div className="alert alert-warning py-2 small mb-2">
+                      No screens found for this theatre. Add a screen in Theatre Management first.
+                    </div>
+                  )}
 
                   <input
                     type="date"
                     className="form-control mb-2"
+                    min={todayDate}
                     value={showForm.showDate}
                     onChange={(e) =>
                       setShowForm({ ...showForm, showDate: e.target.value })
@@ -1140,6 +1182,7 @@ function AdminCreateShow() {
                   <input
                     type="date"
                     className="form-control mb-2"
+                    min={todayDate}
                     value={editForm.showDate}
                     onChange={(e) => setEditForm({ ...editForm, showDate: e.target.value })}
                     required

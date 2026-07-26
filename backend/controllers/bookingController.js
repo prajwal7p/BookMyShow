@@ -3,6 +3,19 @@ const Show = require('../models/Show');
 const Seat = require('../models/Seat');
 const { createNotification } = require('./reportController');
 
+const getTodayStart = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+};
+
+const getCustomerBookingLimit = () => {
+    const limit = getTodayStart();
+    limit.setDate(limit.getDate() + 30);
+    limit.setHours(23, 59, 59, 999);
+    return limit;
+};
+
 
 // 🔹 Create Booking
 exports.createBooking = async (req, res) => {
@@ -15,6 +28,22 @@ exports.createBooking = async (req, res) => {
         if (!show) {
             return res.status(404).json({ message: "Show not found" });
         }
+
+        const showDateOnly = new Date(show.showDate);
+        showDateOnly.setHours(0, 0, 0, 0);
+
+        if (showDateOnly < getTodayStart()) {
+            return res.status(400).json({
+                message: "Cannot book past shows."
+            });
+        }
+
+        if (showDateOnly > getCustomerBookingLimit()) {
+            return res.status(400).json({
+                message: "Bookings are available only for the next 30 days."
+            });
+        }
+
         // Prevent booking if show already started (date + time combined)
         const currentDateTime = new Date();
         const [hours, minutes] = (show.showTime || '00:00').split(':').map(Number);
@@ -94,8 +123,17 @@ exports.getBookingsByUser = async (req, res) => {
         const userId = req.user.id;
 
         const bookings = await Booking.find({ userId })
-            .populate('showId')
-            .populate('seats');
+            .populate({
+                path: 'showId',
+                populate: [
+                    { path: 'movieId', select: 'title' },
+                    {
+                        path: 'screenId',
+                        select: 'screenName theatreId',
+                        populate: { path: 'theatreId', select: 'name city' }
+                    }
+                ]
+            });
 
         res.status(200).json(bookings);
 

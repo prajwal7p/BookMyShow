@@ -91,15 +91,13 @@ export default function TheatreList() {
             )}
 
             {/* Theatre Cards */}
-            {loading ? (
-                <p>Loading theatres...</p>
-            ) : theatres.length === 0 ? (
+            {loading ? null : theatres.length === 0 ? (
                 <p className="text-muted">No theatres found{cityFilter ? ` in "${cityFilter}"` : ''}.</p>
             ) : (
                 <div className="row">
                     {theatres.map((theatre) => (
                         <div className="col-md-4 mb-4" key={theatre._id}>
-                            <div className="card h-100 shadow-sm">
+                            <div className="card h-100 shadow-sm cine-hover-card cine-hover-card--theatre">
                                 {theatre.imageUrl && (
                                     <img
                                         src={theatre.imageUrl}
@@ -107,6 +105,18 @@ export default function TheatreList() {
                                         style={{ width: '100%', height: 180, objectFit: 'cover', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}
                                     />
                                 )}
+                                <div className="cine-hover-card__overlay">
+                                    <h5>{theatre.name}</h5>
+                                    <p>{theatre.location || 'Cinema screens, seat layouts, and shows available here.'}</p>
+                                    <div className="cine-hover-card__meta">
+                                        <span>{theatre.city || 'City'}</span>
+                                        <span>Screens</span>
+                                        <span>Seats</span>
+                                    </div>
+                                    <Link to={`/theatres/${theatre._id}`} className="btn btn-light btn-sm">
+                                        View Details
+                                    </Link>
+                                </div>
                                 <div className="card-body">
                                     <h5 className="card-title">{theatre.name}</h5>
                                     <p className="card-text text-muted mb-1">📍 {theatre.city}</p>

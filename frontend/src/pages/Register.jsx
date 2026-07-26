@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { register, saveToken, getToken } from '../services/authService';
+import { register, saveToken } from '../services/authService';
 
 export default function Register() {
     const navigate = useNavigate();
@@ -9,12 +9,6 @@ export default function Register() {
         securityQuestion: '', securityAnswer: ''
     });
     const [error, setError] = useState('');
-
-    useEffect(() => {
-        if (getToken()) {
-            navigate('/movies');
-        }
-    }, [navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

@@ -1,39 +1,36 @@
-import axios from 'axios';
-
-const API = `${import.meta.env.VITE_API_URL}/theatres`;
-const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+import apiClient from './apiClient';
 
 export const getAllTheatres = (city = '') =>
-    axios.get(API, { headers: getAuthHeader(), params: city ? { city } : {} });
+    apiClient.get('/theatres', { params: city ? { city } : {} });
 
 export const getTheatreById = (id) =>
-    axios.get(`${API}/${id}`, { headers: getAuthHeader() });
+    apiClient.get(`/theatres/${id}`);
 
 export const createTheatre = (data) =>
-    axios.post(API, data, { headers: getAuthHeader() });
+    apiClient.post('/theatres', data);
 
 export const updateTheatre = (id, data) =>
-    axios.put(`${API}/${id}`, data, { headers: getAuthHeader() });
+    apiClient.put(`/theatres/${id}`, data);
 
 export const deleteTheatre = (id) =>
-    axios.delete(`${API}/${id}`, { headers: getAuthHeader() });
+    apiClient.delete(`/theatres/${id}`);
 
 // Screens
 export const getScreensByTheatre = (theatreId) =>
-    axios.get(`${API}/${theatreId}/screens`, { headers: getAuthHeader() });
+    apiClient.get(`/theatres/${theatreId}/screens`);
 
 export const addScreenToTheatre = (theatreId, data) =>
-    axios.post(`${API}/${theatreId}/screens`, data, { headers: getAuthHeader() });
+    apiClient.post(`/theatres/${theatreId}/screens`, data);
 
 export const deleteScreen = (screenId) =>
-    axios.delete(`${API}/screens/${screenId}`, { headers: getAuthHeader() });
+    apiClient.delete(`/theatres/screens/${screenId}`);
 
 // Seats
 export const getSeatsByScreen = (screenId) =>
-    axios.get(`${API}/screens/${screenId}/seats`, { headers: getAuthHeader() });
+    apiClient.get(`/theatres/screens/${screenId}/seats`);
 
 export const addSeats = (screenId, seats) =>
-    axios.post(`${API}/screens/${screenId}/seats`, { seats }, { headers: getAuthHeader() });
+    apiClient.post(`/theatres/screens/${screenId}/seats`, { seats });
 
 export const deleteAllSeats = (screenId) =>
-    axios.delete(`${API}/screens/${screenId}/seats`, { headers: getAuthHeader() });
+    apiClient.delete(`/theatres/screens/${screenId}/seats`);

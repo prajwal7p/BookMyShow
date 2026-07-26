@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getMovieById } from "../services/movieService";
 import { getShows } from "../services/showService";
-import { checkSeatAvailability } from "../services/bookingService";
 
 
 function MovieDetails() {
@@ -12,7 +11,23 @@ function MovieDetails() {
 
   const [movie, setMovie] = useState(null);
   const [shows, setShows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState('all');
+  const [movieLoading, setMovieLoading] = useState(true);
+  const [showsLoading, setShowsLoading] = useState(true);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const bookingLimit = new Date(today);
+  bookingLimit.setDate(bookingLimit.getDate() + 30);
+
+  const getDateKey = (dateValue) => {
+    if (!dateValue) return '';
+    const date = new Date(dateValue);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const todayDate = getDateKey(today);
+  const maxBookingDate = getDateKey(bookingLimit);
 
   useEffect(() => {
     fetchMovie();
@@ -30,6 +45,10 @@ function MovieDetails() {
 
       console.error("Error fetching movie:", error);
 
+    } finally {
+
+      setMovieLoading(false);
+
     }
   };
 
@@ -42,44 +61,21 @@ function MovieDetails() {
       const allShows = res.data || res || [];
 
       const filteredShows = allShows.filter(
-        show =>
-          show.status === "Active" &&
-          (show.movieId?._id === id || show.movieId === id)
+        show => {
+          const showDate = new Date(show.showDate);
+          showDate.setHours(0, 0, 0, 0);
+
+          return show.status === "Active" &&
+            showDate >= today &&
+            showDate <= bookingLimit &&
+            (show.movieId?._id === id || show.movieId === id);
+        }
       );
 
-      const showsWithSeats = await Promise.all(
-
-        filteredShows.map(async show => {
-
-          try {
-
-            const availRes = await checkSeatAvailability(show._id);
-            const bookedSeats = availRes.data.bookedSeats || [];
-
-            const totalSeats = show.screenId?.totalSeats || 0;
-
-            const availableSeats = totalSeats - bookedSeats.length;
-
-            return {
-              ...show,
-              totalSeats,
-              availableSeats
-            };
-
-          } catch {
-
-            return {
-              ...show,
-              totalSeats: show.screenId?.totalSeats || 0,
-              availableSeats: 0
-            };
-
-          }
-
-        })
-      );
-
-      setShows(showsWithSeats);
+      setShows(filteredShows.sort((a, b) => (
+        new Date(a.showDate) - new Date(b.showDate) ||
+        String(a.showTime).localeCompare(String(b.showTime))
+      )));
 
     } catch (error) {
 
@@ -87,17 +83,17 @@ function MovieDetails() {
 
     } finally {
 
-      setLoading(false);
+      setShowsLoading(false);
 
     }
   };
 
   // ───────── Group Shows By Theatre ─────────
-  const groupShowsByTheatre = () => {
+  const groupShowsByTheatre = (showList) => {
 
     const grouped = {};
 
-    shows.forEach(show => {
+    showList.forEach(show => {
 
       const theatre =
         show.screenId?.theatreId?.name || "Unknown Theatre";
@@ -122,13 +118,14 @@ function MovieDetails() {
     return min === max ? `₹${min}` : `₹${min} – ₹${max}`;
   };
 
-  if (loading)
-    return <div className="container mt-5">Loading...</div>;
-
-  if (!movie)
+  if (!movie && !movieLoading)
     return <div className="container mt-5">Movie not found.</div>;
 
-  const groupedShows = groupShowsByTheatre();
+  const dateOptions = [...new Set(shows.map(show => getDateKey(show.showDate)))];
+  const visibleShows = selectedDate === 'all'
+    ? shows
+    : shows.filter(show => getDateKey(show.showDate) === selectedDate);
+  const groupedShows = groupShowsByTheatre(visibleShows);
 
   return (
 
@@ -136,11 +133,11 @@ function MovieDetails() {
 
       {/* Movie Info */}
 
-      <h2 className="page-title mb-2">{movie.title}</h2>
+      <h2 className="page-title mb-2">{movie?.title || 'Movie Details'}</h2>
 
       <div className="row g-4 align-items-start">
         <div className="col-md-4">
-          {movie.imageUrl ? (
+          {movie?.imageUrl ? (
             <img
               src={movie.imageUrl}
               alt={movie.title}
@@ -152,25 +149,25 @@ function MovieDetails() {
         </div>
         <div className="col-md-8">
           <p>
-            <strong>Language:</strong> {movie.language}
+            <strong>Language:</strong> {movie?.language || ''}
           </p>
 
           <p>
-            <strong>Genre:</strong> {movie.genre?.join(", ")}
+            <strong>Genre:</strong> {movie?.genre?.join(", ") || ''}
           </p>
 
           <p>
-            <strong>Duration:</strong> {movie.duration} minutes
+            <strong>Duration:</strong> {movie?.duration || ''} minutes
           </p>
 
           <p>
-            <strong>Rating:</strong> {movie.rating}
+            <strong>Rating:</strong> {movie?.rating || ''}
           </p>
 
           <hr />
 
           <h5>Description</h5>
-          <p>{movie.description}</p>
+          <p>{movie?.description || ''}</p>
         </div>
       </div>
 
@@ -180,15 +177,42 @@ function MovieDetails() {
 
       <h4 className="mt-4">Available Shows</h4>
 
-      {shows.length === 0 ? (
+      {showsLoading ? null : shows.length === 0 ? (
 
         <div className="alert alert-warning">
           No shows available for this movie.
         </div>
 
       ) : (
+        <>
+          <div className="d-flex gap-2 flex-wrap mb-3">
+            <input
+              type="date"
+              className="form-control form-control-sm"
+              style={{ width: 170 }}
+              min={todayDate}
+              max={maxBookingDate}
+              value={selectedDate === 'all' ? '' : selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value || 'all')}
+            />
+            <button
+              className={`btn btn-sm ${selectedDate === 'all' ? 'btn-danger' : 'btn-outline-primary'}`}
+              onClick={() => setSelectedDate('all')}
+            >
+              All Upcoming
+            </button>
+            {dateOptions.map(date => (
+              <button
+                key={date}
+                className={`btn btn-sm ${selectedDate === date ? 'btn-danger' : 'btn-outline-primary'}`}
+                onClick={() => setSelectedDate(date)}
+              >
+                {new Date(date).toLocaleDateString("en-GB", { day: '2-digit', month: 'short' })}
+              </button>
+            ))}
+          </div>
 
-        Object.keys(groupedShows).map(theatre => (
+          {Object.keys(groupedShows).map(theatre => (
 
           <div key={theatre} className="card mb-3">
 
@@ -233,7 +257,7 @@ function MovieDetails() {
                       🪑 Available Seats:
                       <strong>
                         {" "}
-                        {show.availableSeats} / {show.totalSeats}
+                        {show.screenId?.totalSeats || 0}
                       </strong>
                     </div>
 
@@ -243,12 +267,11 @@ function MovieDetails() {
 
                   <button
                     className="btn btn-danger btn-sm"
-                    disabled={show.availableSeats === 0}
                     onClick={() =>
                       navigate(`/booking?showId=${show._id}`)
                     }
                   >
-                    {show.availableSeats === 0 ? "Sold Out" : "Book"}
+                    Book
                   </button>
 
                 </div>
@@ -259,7 +282,12 @@ function MovieDetails() {
 
           </div>
 
-        ))
+          ))}
+
+          {visibleShows.length === 0 && (
+            <div className="alert alert-warning">No shows available for this date.</div>
+          )}
+        </>
 
       )}
 

@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { getToken } from '../services/authService';
+import apiClient from '../services/apiClient';
 
-const API = `${import.meta.env.VITE_API_URL}/auth`;
 
 export default function ForgotPassword() {
     const navigate = useNavigate();
@@ -25,7 +24,7 @@ export default function ForgotPassword() {
         e.preventDefault();
         setError('');
         try {
-            const { data } = await axios.get(`${API}/security-question?email=${email}`);
+            const { data } = await apiClient.get('/auth/security-question', { params: { email } });
             setQuestion(data.securityQuestion || 'No question set for this account');
             setStep(2);
         } catch (err) {
@@ -37,7 +36,7 @@ export default function ForgotPassword() {
         e.preventDefault();
         setError('');
         try {
-            const { data } = await axios.post(`${API}/forgot-password`, { email, securityAnswer: answer, newPassword });
+            const { data } = await apiClient.post('/auth/forgot-password', { email, securityAnswer: answer, newPassword });
             setMsg(data.msg);
             setStep(3);
         } catch (err) {

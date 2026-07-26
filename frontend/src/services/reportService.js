@@ -1,28 +1,21 @@
-import axios from 'axios';
-
-const API = `${import.meta.env.VITE_API_URL}/reports`;
-
-const getAuthHeader = () => {
-    const token = localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import apiClient from './apiClient';
 
 /* ---------- Notification Endpoints ---------- */
 export const getNotifications = (userId) =>
-    axios.get(`${API}/notifications/${userId}`, { headers: getAuthHeader() });
+    apiClient.get(`/reports/notifications/${userId}`);
 
 export const markAsRead = (notifId) =>
-    axios.put(`${API}/notifications/${notifId}/read`, {}, { headers: getAuthHeader() });
+    apiClient.put(`/reports/notifications/${notifId}/read`);
 
 export const deleteNotification = (notifId) =>
-    axios.delete(`${API}/notifications/${notifId}`, { headers: getAuthHeader() });
+    apiClient.delete(`/reports/notifications/${notifId}`);
 
 /* ---------- Report Endpoints (Admin Only) ---------- */
 export const getRevenueReport = (params = {}) =>
-    axios.get(`${API}/revenue`, { headers: getAuthHeader(), params });
+    apiClient.get('/reports/revenue', { params });
 
 export const getOccupancyReport = () =>
-    axios.get(`${API}/occupancy`, { headers: getAuthHeader() });
+    apiClient.get('/reports/occupancy');
 
 export const getBookingReport = (params = {}) =>
-    axios.get(`${API}/bookings`, { headers: getAuthHeader(), params });
+    apiClient.get('/reports/bookings', { params });

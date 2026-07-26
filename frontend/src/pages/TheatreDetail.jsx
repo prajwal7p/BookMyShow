@@ -58,7 +58,7 @@ export default function TheatreDetail() {
         return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
     };
 
-    if (loading) return <div className="container mt-5">Loading...</div>;
+    if (loading) return <div className="container mt-4"></div>;
     if (!theatre) return <div className="container mt-5 text-danger">Theatre not found.</div>;
 
     return (

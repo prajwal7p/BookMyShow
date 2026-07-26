@@ -1,32 +1,25 @@
-import axios from "axios";
-
-const API = import.meta.env.VITE_API_URL;
-
-const getAuthHeader = () => {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import apiClient from './apiClient';
 
 export const createShow = (data) =>
-  axios.post(`${API}/shows/create`, data, { headers: getAuthHeader() });
+  apiClient.post('/shows/create', data);
 
 export const getShows = () =>
-  axios.get(`${API}/shows`, { headers: getAuthHeader() });
+  apiClient.get('/shows');
 
 export const cancelShow = (id) =>
-  axios.put(`${API}/shows/cancel/${id}`, {}, { headers: getAuthHeader() });
+  apiClient.put(`/shows/cancel/${id}`);
 
 export const createBooking = (data) =>
-  axios.post(`${API}/bookings/create`, data, { headers: getAuthHeader() });
+  apiClient.post('/bookings/create', data);
 
 export const checkSeatAvailability = (showId) =>
-  axios.get(`${API}/bookings/availability/${showId}`, { headers: getAuthHeader() });
+  apiClient.get(`/bookings/availability/${showId}`);
 
 export const getMyBookings = (userId) =>
-  axios.get(`${API}/bookings/user/${userId}`, { headers: getAuthHeader() });
+  apiClient.get(`/bookings/user/${userId}`);
 
 export const cancelBooking = (id) =>
-  axios.put(`${API}/bookings/cancel/${id}`, {}, { headers: getAuthHeader() });
+  apiClient.put(`/bookings/cancel/${id}`);
 
 export const updateShow = (id, data) =>
-  axios.put(`${API}/shows/${id}`, data, { headers: getAuthHeader() });
+  apiClient.put(`/shows/${id}`, data);

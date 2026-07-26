@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMovies } from "../services/movieService";
 import { getShows } from "../services/showService";
-import { checkSeatAvailability } from "../services/bookingService";
 
 function MovieList() {
 
   const [movies, setMovies] = useState([]);
   const [shows, setShows] = useState([]);
+  const [moviesLoading, setMoviesLoading] = useState(true);
+  const [showsLoading, setShowsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [selectedShows, setSelectedShows] = useState([]);
   const [selectedMovie, setSelectedMovie] = useState(null);
 
@@ -20,57 +22,35 @@ function MovieList() {
 
   // ───── Fetch Movies ─────
   const fetchMovies = async () => {
+    setMoviesLoading(true);
+    setLoadError('');
     try {
-      const data = await getMovies();
+      const data = await getMovies({ limit: 1000 });
       setMovies(data.data || []);
     } catch (err) {
       console.error("Error fetching movies:", err);
+      setLoadError('Failed to load movies.');
+    } finally {
+      setMoviesLoading(false);
     }
   };
 
   // ───── Fetch Shows + Seat Availability ─────
   const fetchShows = async () => {
 
+    setShowsLoading(true);
+    setLoadError('');
     try {
 
       const res = await getShows();
       const allShows = res.data || res || [];
-
-      const showsWithSeats = await Promise.all(
-
-        allShows.map(async (show) => {
-
-          try {
-
-            const availRes = await checkSeatAvailability(show._id);
-            const bookedSeats = availRes.data.bookedSeats || [];
-
-            const totalSeats = show.screenId?.totalSeats || 0;
-            const availableSeats = totalSeats - bookedSeats.length;
-
-            return {
-              ...show,
-              totalSeats,
-              availableSeats
-            };
-
-          } catch {
-
-            return {
-              ...show,
-              totalSeats: show.screenId?.totalSeats || 0,
-              availableSeats: 0
-            };
-
-          }
-
-        })
-      );
-
-      setShows(showsWithSeats);
+      setShows(allShows);
 
     } catch (err) {
       console.error("Error fetching shows:", err);
+      setLoadError('Failed to load shows.');
+    } finally {
+      setShowsLoading(false);
     }
   };
 
@@ -79,7 +59,7 @@ function MovieList() {
 
     return shows.filter(
       (show) =>
-        show.movieId?._id === movieId &&
+        (show.movieId?._id === movieId || show.movieId === movieId) &&
         show.status === "Active"
     );
 
@@ -118,9 +98,15 @@ function MovieList() {
 
       <h2 className="page-title">Now Showing</h2>
 
+      {loadError && <div className="alert alert-danger">{loadError}</div>}
+
+      {!moviesLoading && movies.length === 0 ? (
+        <div className="alert alert-warning">No movies available.</div>
+      ) : null}
+
       <div className="row">
 
-        {movies.map((movie) => {
+        {!moviesLoading && movies.map((movie) => {
 
           const movieShows = getMovieShows(movie._id);
 
@@ -128,7 +114,7 @@ function MovieList() {
 
             <div key={movie._id} className="col-md-4 mb-4">
 
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card p-3 shadow-sm h-100 cine-hover-card">
 
                 {movie.imageUrl && (
                   <img
@@ -138,6 +124,22 @@ function MovieList() {
                     style={{ width: '100%', height: 300, objectFit: 'cover', borderRadius: 12 }}
                   />
                 )}
+
+                <div className="cine-hover-card__overlay">
+                  <h5>{movie.title}</h5>
+                  <p>{movie.description || 'Movie details, show timings, and booking options are ready.'}</p>
+                  <div className="cine-hover-card__meta">
+                    <span>{movie.language || 'Movie'}</span>
+                    <span>{movie.duration ? `${movie.duration} min` : 'Now showing'}</span>
+                    <span>{movie.rating ? `${movie.rating}/10` : 'Rated'}</span>
+                  </div>
+                  <button
+                    className="btn btn-light btn-sm"
+                    onClick={() => navigate(`/movies/${movie._id}`)}
+                  >
+                    View Details
+                  </button>
+                </div>
 
                 <h5>{movie.title}</h5>
 
@@ -160,7 +162,7 @@ function MovieList() {
 
                 {/* Shows Button */}
 
-                {movieShows.length > 0 ? (
+                {showsLoading ? null : movieShows.length > 0 ? (
 
                   <button
                     className="btn btn-success"
@@ -272,21 +274,18 @@ function MovieList() {
                           </td>
 
                           <td>
-                            {show.availableSeats} / {show.totalSeats}
+                            {show.screenId?.totalSeats || 0}
                           </td>
 
                           <td>
 
                             <button
                               className="btn btn-primary btn-sm"
-                              disabled={show.availableSeats === 0}
                               onClick={() =>
                                 navigate(`/booking?showId=${show._id}`)
                               }
                             >
-                              {show.availableSeats === 0
-                                ? "Sold Out"
-                                : "Book"}
+                              Book
                             </button>
 
                           </td>

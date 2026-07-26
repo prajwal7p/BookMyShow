@@ -1,13 +1,11 @@
-import axios from "axios";
-
-const API = `${import.meta.env.VITE_API_URL}/auth`;
+import apiClient from './apiClient';
 
 export const register = (data) => {
-  return axios.post(`${API}/register`, data);
+  return apiClient.post('/auth/register', data);
 };
 
 export const login = (data) => {
-  return axios.post(`${API}/login`, data);
+  return apiClient.post('/auth/login', data);
 };
 
 export const saveToken = (token, user) => {

@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Public endpoints for ALB checks and quick verification.
 app.get('/', (req, res) => {
-    res.status(200).json({ message: 'Rev-BookMyShow backend is running' });
+    res.status(200).json({ message: 'CineHive backend is running' });
 });
 
 app.get('/health', (req, res) => {

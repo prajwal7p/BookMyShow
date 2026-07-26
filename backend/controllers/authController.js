@@ -9,7 +9,13 @@ const generateToken = (id, role) => {
 const register = async (req, res) => {
     try {
         const { name, email, password, role, securityQuestion, securityAnswer } = req.body;
-        const existingUser = await User.findOne({ email });
+        const normalizedEmail = email?.trim().toLowerCase();
+
+        if (!name?.trim() || !normalizedEmail || !password) {
+            return res.status(400).json({ msg: 'Name, email, and password are required' });
+        }
+
+        const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
             return res.status(400).json({ msg: 'User already exists with this email' });
         }
@@ -22,11 +28,11 @@ const register = async (req, res) => {
             : undefined;
 
         const user = await User.create({
-            name,
-            email,
+            name: name.trim(),
+            email: normalizedEmail,
             password: hashedPassword,
             role: role || 'Customer',
-            securityQuestion,
+            securityQuestion: securityQuestion?.trim(),
             securityAnswer: hashedAnswer
         });
 
@@ -41,7 +47,13 @@ const register = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error(err.message);
+        console.error(`Registration error: ${err.message}`);
+        if (err.code === 11000) {
+            return res.status(400).json({ msg: 'User already exists with this email' });
+        }
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ msg: err.message });
+        }
         res.status(500).json({ msg: 'Server error during registration' });
     }
 };
@@ -49,8 +61,13 @@ const register = async (req, res) => {
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const normalizedEmail = email?.trim().toLowerCase();
 
-        const user = await User.findOne({ email });
+        if (!normalizedEmail || !password) {
+            return res.status(400).json({ msg: 'Email and password are required' });
+        }
+
+        const user = await User.findOne({ email: normalizedEmail });
         if (!user) {
             return res.status(400).json({ msg: 'Invalid email or password' });
         }
@@ -75,7 +92,7 @@ const login = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error(err.message);
+        console.error(`Login error: ${err.message}`);
         res.status(500).json({ msg: 'Server error during login' });
     }
 };

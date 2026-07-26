@@ -110,7 +110,6 @@ export default function BookingAssistant() {
                 {m.text}
               </div>
             ))}
-            {loading && <div className="rbms-chat-msg is-bot">Loading...</div>}
           </div>
 
           <div className="rbms-chatbot-actions">

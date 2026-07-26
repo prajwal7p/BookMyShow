@@ -52,9 +52,7 @@ export default function BookingHistory() {
 
             {error && <div className="alert alert-danger">{error}</div>}
 
-            {loading ? (
-                <p>Loading your bookings...</p>
-            ) : bookings.length === 0 ? (
+            {loading ? null : bookings.length === 0 ? (
                 <div className="text-center mt-5">
                     <h5 className="text-muted">No bookings yet.</h5>
                     <p className="text-muted">Browse movies and book your first show!</p>
@@ -66,6 +64,7 @@ export default function BookingHistory() {
                         <thead className="table-dark">
                             <tr>
                                 <th>#</th>
+                                <th>Movie</th>
                                 <th>Show Date</th>
                                 <th>Show Time</th>
                                 <th>Seats</th>
@@ -79,6 +78,9 @@ export default function BookingHistory() {
                             {bookings.map((booking, index) => (
                                 <tr key={booking._id}>
                                     <td>{index + 1}</td>
+                                    <td className="fw-semibold">
+                                        {booking.showId?.movieId?.title || 'Movie unavailable'}
+                                    </td>
                                     <td>{formatDate(booking.showId?.showDate)}</td>
                                     <td>{booking.showId?.showTime || '—'}</td>
                                     <td>

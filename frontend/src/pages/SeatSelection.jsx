@@ -12,6 +12,7 @@ export default function SeatSelection() {
   const navigate = useNavigate();
 
   const [shows, setShows] = useState([]);
+  const [selectedDate, setSelectedDate] = useState('all');
   const [selectedShow, setSelectedShow] = useState(null);
   const [showsLoading, setShowsLoading] = useState(true);
 
@@ -27,6 +28,20 @@ export default function SeatSelection() {
   const token = getToken();
   const user = getUser();
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const bookingLimit = new Date(today);
+  bookingLimit.setDate(bookingLimit.getDate() + 30);
+
+  const getDateKey = (dateValue) => {
+    if (!dateValue) return '';
+    const date = new Date(dateValue);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const todayDate = getDateKey(today);
+  const maxBookingDate = getDateKey(bookingLimit);
+
   useEffect(() => { fetchShows(); }, []);
 
   const fetchShows = async () => {
@@ -34,9 +49,17 @@ export default function SeatSelection() {
     try {
       const res = await getShows();
       const allShows = res.data || res || [];
-      let filtered = allShows.filter(s => s.status === 'Active');
+      let filtered = allShows.filter(s => {
+        const showDate = new Date(s.showDate);
+        showDate.setHours(0, 0, 0, 0);
+        return s.status === 'Active' && showDate >= today && showDate <= bookingLimit;
+      });
       if (showId) filtered = filtered.filter(s => s._id === showId);
       if (movieId) filtered = filtered.filter(s => s.movieId?._id === movieId || s.movieId === movieId);
+      filtered.sort((a, b) => (
+        new Date(a.showDate) - new Date(b.showDate) ||
+        String(a.showTime).localeCompare(String(b.showTime))
+      ));
       setShows(filtered);
       if (showId && filtered.length === 1) handleSelectShow(filtered[0]);
     } catch {
@@ -127,6 +150,11 @@ export default function SeatSelection() {
     return min === max ? `₹${min}` : `₹${min} – ₹${max}`;
   };
 
+  const dateOptions = [...new Set(shows.map(show => getDateKey(show.showDate)))];
+  const visibleShows = selectedDate === 'all'
+    ? shows
+    : shows.filter(show => getDateKey(show.showDate) === selectedDate);
+
   if (success) {
     return (
       <div className="container mt-5 text-center" style={{ maxWidth: 500, margin: '80px auto' }}>
@@ -160,11 +188,41 @@ export default function SeatSelection() {
       {!selectedShow && (
         <>
           <h5 className="text-muted mb-3">Select a Show</h5>
-          {showsLoading ? <p>Loading shows...</p> : shows.length === 0 ? (
+          {showsLoading ? null : shows.length === 0 ? (
             <div className="alert alert-warning">No shows available.</div>
           ) : (
+            <>
+              <div className="d-flex gap-2 flex-wrap mb-3">
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: 170 }}
+                  min={todayDate}
+                  max={maxBookingDate}
+                  value={selectedDate === 'all' ? '' : selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value || 'all')}
+                />
+                <button
+                  className={`btn btn-sm ${selectedDate === 'all' ? 'btn-danger' : 'btn-outline-primary'}`}
+                  onClick={() => setSelectedDate('all')}
+                >
+                  All Upcoming
+                </button>
+                {dateOptions.map(date => (
+                  <button
+                    key={date}
+                    className={`btn btn-sm ${selectedDate === date ? 'btn-danger' : 'btn-outline-primary'}`}
+                    onClick={() => setSelectedDate(date)}
+                  >
+                    {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                  </button>
+                ))}
+              </div>
+              {visibleShows.length === 0 ? (
+                <div className="alert alert-warning">No shows available for this date.</div>
+              ) : (
             <div className="row">
-              {shows.map(show => {
+              {visibleShows.map(show => {
                 const p = show.ticketPrice;
                 const vals = p ? [p.Regular, p.Premium, p.VIP].filter(v => v > 0) : [];
                 const priceStr = vals.length ? (Math.min(...vals) === Math.max(...vals) ? `₹${Math.min(...vals)}` : `₹${Math.min(...vals)}–₹${Math.max(...vals)}`) : '';
@@ -186,6 +244,8 @@ export default function SeatSelection() {
                 );
               })}
             </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -222,7 +282,7 @@ export default function SeatSelection() {
             </div>
 
             {/* Seat Map */}
-            {seatsLoading ? <p className="text-center">Loading seats...</p> : seats.length === 0 ? (
+            {seatsLoading ? null : seats.length === 0 ? (
               <div className="alert alert-warning">No seats configured for this screen.</div>
             ) : (
               <>

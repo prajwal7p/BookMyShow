@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getUser, logout } from '../services/authService';
 
@@ -5,18 +6,43 @@ export default function Navbar() {
     const navigate = useNavigate();
     const user = getUser();
     const isAdmin = user?.role === 'Admin';
+    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+    useEffect(() => {
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.bsTheme = theme;
+        localStorage.setItem('theme', theme);
+    }, [theme]);
 
     const handleLogout = () => {
         logout();
-        navigate('/login');
+        navigate('/');
+    };
+
+    const toggleTheme = () => {
+        setTheme(current => current === 'dark' ? 'light' : 'dark');
     };
 
     return (
         <nav className='navbar rbms-nav px-4'>
-            <Link className='navbar-brand' to="/movies">
-                RevBook<span className='rbms-brand-dot'>MyShow</span>
+            <Link className='navbar-brand' to={user ? "/movies" : "/"}>
+                Cine<span className='rbms-brand-dot'>Hive</span>
             </Link>
             <div className='d-flex align-items-center gap-3'>
+                <label className='rbms-theme-toggle' title='Toggle dark theme'>
+                    <input
+                        type='checkbox'
+                        checked={theme === 'dark'}
+                        onChange={toggleTheme}
+                        aria-label='Toggle dark theme'
+                    />
+                    <span className='rbms-theme-toggle__track'>
+                        <span className='rbms-theme-toggle__thumb' />
+                    </span>
+                    <span className='rbms-theme-toggle__label'>
+                        {theme === 'dark' ? 'Dark' : 'Light'}
+                    </span>
+                </label>
                 {user ? (
                     <>
                         <Link className='rbms-nav-link' to="/movies">Movies</Link>

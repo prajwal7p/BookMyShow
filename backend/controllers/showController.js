@@ -2,12 +2,53 @@ const Show = require('../models/Show');
 const Movie = require('../models/Movie');
 const Screen = require('../models/Screen');
 
+const getTodayStart = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+};
+
+const getCustomerBookingLimit = () => {
+    const limit = getTodayStart();
+    limit.setDate(limit.getDate() + 30);
+    limit.setHours(23, 59, 59, 999);
+    return limit;
+};
+
+const normalizeShowDate = (showDate) => {
+    const normalizedDate = new Date(showDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+    return normalizedDate;
+};
+
+const validateShowDate = (showDate) => {
+    if (!showDate) {
+        return { error: "Show date is required" };
+    }
+
+    const normalizedDate = normalizeShowDate(showDate);
+
+    if (Number.isNaN(normalizedDate.getTime())) {
+        return { error: "Invalid show date" };
+    }
+
+    if (normalizedDate < getTodayStart()) {
+        return { error: "Show date cannot be in the past" };
+    }
+
+    return { normalizedDate };
+};
 
 // ================= CREATE SHOW =================
 exports.createShow = async (req, res) => {
     try {
 
         const { movieId, screenId, showDate, showTime, ticketPrice } = req.body;
+        const { normalizedDate, error } = validateShowDate(showDate);
+
+        if (error) {
+            return res.status(400).json({ message: error });
+        }
 
         // Validate movie
         const movie = await Movie.findById(movieId);
@@ -24,7 +65,7 @@ exports.createShow = async (req, res) => {
         // Prevent duplicate show
         const existingShow = await Show.findOne({
             screenId,
-            showDate,
+            showDate: normalizedDate,
             showTime
         });
 
@@ -38,7 +79,7 @@ exports.createShow = async (req, res) => {
         const newShow = new Show({
             movieId,
             screenId,
-            showDate,
+            showDate: normalizedDate,
             showTime,
             ticketPrice: {
                 Regular: Number(ticketPrice?.Regular || 0),
@@ -64,6 +105,14 @@ exports.getAllShows = async (req, res) => {
     try {
         const { movieId } = req.query;
         const filter = movieId ? { movieId } : {};
+
+        if (req.user?.role !== 'Admin') {
+            filter.status = 'Active';
+            filter.showDate = {
+                $gte: getTodayStart(),
+                $lte: getCustomerBookingLimit()
+            };
+        }
 
         const shows = await Show.find(filter)
             .populate('movieId')
@@ -145,10 +194,15 @@ exports.updateShow = async (req, res) => {
         }
 
         const { showDate, showTime, ticketPrice } = req.body;
+        const nextShowDate = showDate ? validateShowDate(showDate) : { normalizedDate: show.showDate };
+
+        if (nextShowDate.error) {
+            return res.status(400).json({ message: nextShowDate.error });
+        }
 
         const existingShow = await Show.findOne({
             screenId: show.screenId,
-            showDate: showDate || show.showDate,
+            showDate: nextShowDate.normalizedDate,
             showTime: showTime || show.showTime,
             _id: { $ne: req.params.id }
         });
@@ -157,7 +211,7 @@ exports.updateShow = async (req, res) => {
             return res.status(400).json({ message: "Another show already exists at this time." });
         }
 
-        if (showDate) show.showDate = showDate;
+        if (showDate) show.showDate = nextShowDate.normalizedDate;
         if (showTime) show.showTime = showTime;
         if (ticketPrice) {
             show.ticketPrice = {
