@@ -10,14 +10,32 @@ connectDB();
 const app = express();
 
 // CORS
-const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '')
-    .split(',')
-    .map(origin => origin.trim())
+const allowedOrigins = [
+    process.env.CORS_ORIGIN,
+    process.env.FRONTEND_URL,
+    // Production Vercel deployment. Environment variables above can add or
+    // replace this for preview deployments or a custom domain.
+    'https://book-my-show-six-peach.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+]
+    .flatMap(value => (value || '').split(','))
+    .map(origin => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
 
 app.use(cors({
-    origin: allowedOrigins.length ? allowedOrigins : true,
-    credentials: true
+    origin(origin, callback) {
+        // Requests without an Origin header (health checks, curl, server to
+        // server calls) do not need CORS validation.
+        if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+            return callback(null, true);
+        }
+
+        return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+    },
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
